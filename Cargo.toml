@@ -1,0 +1,11 @@
+[package]
+name = "pi_calculus2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gelato_parser = { path = "gelato_parser" }
+gelato_tools = { path = "gelato_tools"}
+petgraph = "0.8.3"
+rayon = "1.11.0"
+thiserror = "2.0.17"
