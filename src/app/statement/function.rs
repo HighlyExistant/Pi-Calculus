@@ -1,6 +1,6 @@
 use gelato_parser::tokens::{Ident, Punct, Token, Tokens};
 
-use crate::app::{error::{IO_PUNCT_ERROR, PiError, Result}, statement::freename::PiFreename};
+use crate::app::{error::{IO_PUNCT_ERROR, PiResult, Result}, statement::freename::PiFreename};
 #[derive(Debug, Clone)]
 pub struct PiFunction {
     ident: PiFreename,
@@ -27,9 +27,9 @@ impl PiFunction {
         let variable = PiFreename::parse_next(tokens)?;
         let close = tokens
             .next_if_punct()
-            .ok_or(PiError::UnexpectedToken(")"))?;
+            .ok_or(PiResult::UnexpectedToken(")"))?;
         if close.punct() != ')' {
-            return Err(PiError::UnexpectedToken(")"));
+            return Err(PiResult::UnexpectedToken(")"));
         }
         Ok(Self { ident: PiFreename::from(ident.clone()), open: open.clone(), variable, close })
     }
@@ -37,9 +37,9 @@ impl PiFunction {
         let variable = PiFreename::parse_next(tokens)?;
         let close = tokens
             .next_if_punct()
-            .ok_or(PiError::UnexpectedToken(">"))?;
+            .ok_or(PiResult::UnexpectedToken(">"))?;
         if close.punct() != '>' {
-            return Err(PiError::UnexpectedToken(">"));
+            return Err(PiResult::UnexpectedToken(">"));
         }
         Ok(Self { ident: PiFreename::from(ident.clone()), open: open.clone(), variable, close })
     }

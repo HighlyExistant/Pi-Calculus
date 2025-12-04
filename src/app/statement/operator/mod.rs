@@ -2,7 +2,7 @@ use std::{cell::UnsafeCell, fmt::Debug, rc::Rc};
 
 use gelato_parser::tokens::{Punct, Token, Tokens};
 
-use crate::app::{error::{PiError, Result}, statement::{operator::{binary::BinOp, unary::UniOp}, value::{Value, Values}}};
+use crate::app::{error::{PiResult, Result}, statement::{operator::{binary::BinOp, unary::UniOp}, value::{Value, Values}}};
 
 pub mod unary;
 pub mod binary;
@@ -23,7 +23,7 @@ impl OperatorNode {
     }
     /// After a series of values, you will encounter an operator. These operators can only
     /// be continued with this function
-    fn parse_next_with_prev(tokens: &mut Tokens, values: Values, op: Punct) -> Result<Self> {
+    fn parse_next_with_prev(tokens: &mut Tokens, values: Values, op: Punct, in_group: bool) -> Result<Self> {
         let binop = match op.punct() {
             '|' => {
                 BinOp::Concurrency
@@ -34,15 +34,22 @@ impl OperatorNode {
             '.' => {
                 BinOp::Sequential
             }
+            ')' => {
+                if in_group {
+                    return Ok(OperatorNode::new(Operator::Value { op: values }));
+                } else {
+                    return Err(PiResult::UnexpectedToken("'|', '+' or '.'"));
+                }
+            }
             _ => panic!("??? Not supposed to happen")
         };
         Ok(Self::new(Operator::Binary { 
             ty: binop, 
             lhs: OperatorNode::new(Operator::Value { op: values }), 
-            rhs: OperatorNode::parse_next(tokens)? 
+            rhs: OperatorNode::parse_next(tokens, in_group)? 
         }))
     }
-    pub fn parse_next(tokens: &mut Tokens) -> Result<Self> {
+    pub fn parse_next(tokens: &mut Tokens, in_group: bool) -> Result<Self> {
         let first = if let Some(token) = tokens.next() {
             token
         } else {
@@ -50,27 +57,40 @@ impl OperatorNode {
         };
         
         match first {
-            Token::Punct(punct) => Self::match_punct(tokens, &punct),
+            Token::Punct(punct) => Self::match_punct(tokens, &punct, in_group),
             _ => { // if no other value, then it must be some kind of value
-                let (values, op) = Self::match_values(tokens, first)?;
+                let (values, op) = Self::match_values(tokens, first, in_group)?;
                 if let Some(operator) = op {
-                    Self::parse_next_with_prev(tokens, values, operator)
+                    Self::parse_next_with_prev(tokens, values, operator, in_group)
                 } else {
                     Ok(Self::new(Operator::Value { op: values }))
                 }
             }
         }
     }
-    fn match_punct(tokens: &mut Tokens, punct: &Punct) -> Result<Self> {
+    pub fn parse_next_prev(tokens: &mut Tokens, first: Token, in_group: bool) -> Result<Self> {
+        match first {
+            Token::Punct(punct) => Self::match_punct(tokens, &punct, in_group),
+            _ => { // if no other value, then it must be some kind of value
+                let (values, op) = Self::match_values(tokens, first, in_group)?;
+                if let Some(operator) = op {
+                    Self::parse_next_with_prev(tokens, values, operator, in_group)
+                } else {
+                    Ok(Self::new(Operator::Value { op: values }))
+                }
+            }
+        }
+    }
+    fn match_punct(tokens: &mut Tokens, punct: &Punct, in_group: bool) -> Result<Self> {
         match punct.punct() {
             '!' => { // Only operator to look out for is replication
-                let next = OperatorNode::parse_next(tokens)?;
+                let next = OperatorNode::parse_next(tokens, in_group)?;
                 return Ok(OperatorNode::new(Operator::Unary { ty: UniOp::Replication, val: next }));
             }
             _ => { // if no other value, then it must be some kind of value
-                let (values, op) = Self::match_values(tokens, Token::Punct(punct.clone()))?;
+                let (values, op) = Self::match_values(tokens, Token::Punct(punct.clone()), in_group)?;
                 if let Some(operator) = op {
-                    Self::parse_next_with_prev(tokens, values, operator)
+                    Self::parse_next_with_prev(tokens, values, operator, in_group)
                 } else {
                     Ok(Self::new(Operator::Value { op: values }))
                 }
@@ -86,10 +106,17 @@ impl OperatorNode {
             false
         }
     }
-    fn match_values(tokens: &mut Tokens, first_element: Token) -> Result<(Values, Option<Punct>)> {
+    fn match_values(tokens: &mut Tokens, first_element: Token, in_group: bool) -> Result<(Values, Option<Punct>)> {
         let mut values = Values::new();
         values.push_value(Value::parse_next_start(tokens, first_element)?);
         while let Some(token) = tokens.next() {
+            if in_group {
+                if let Some(punct) = token.get_punct() {
+                    if punct.punct() == ')' {
+                        return Ok((values, Some(token.get_punct().unwrap())));
+                    }
+                }
+            }
             if Self::is_binop(&token) {
                 return Ok((values, Some(token.get_punct().unwrap())));
             } else {

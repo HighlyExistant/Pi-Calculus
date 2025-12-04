@@ -1,6 +1,6 @@
 use gelato_parser::tokens::{Punct, Tokens};
 
-use crate::app::{error::{PiError, Result}, statement::freename::PiFreename};
+use crate::app::{error::{PiResult, Result}, statement::freename::PiFreename};
 #[derive(Debug, Clone)]
 pub enum ConditionalOp {
     Eq,
@@ -17,7 +17,7 @@ pub struct PiConditional {
 impl PiConditional {
     pub fn parse_next(tokens: &mut Tokens, open: Punct) -> Result<Self> {
         let lhs = PiFreename::parse_next(tokens)?;
-        let parse = tokens.get_puncts(2).ok_or(PiError::UnexpectedToken("'==' or '!='"))?;
+        let parse = tokens.get_puncts(2).ok_or(PiResult::UnexpectedToken("'==' or '!='"))?;
         let cond_op = match parse.puncts() {
             "==" => {
                 ConditionalOp::Eq
@@ -25,12 +25,12 @@ impl PiConditional {
             "!=" => {
                 ConditionalOp::NEq
             }
-            _ => return Err(PiError::UnexpectedToken("'==' or '!='")),
+            _ => return Err(PiResult::UnexpectedToken("'==' or '!='")),
         };
         let rhs = PiFreename::parse_next(tokens)?;
-        let close = tokens.next_if_punct().ok_or(PiError::UnexpectedToken("']'"))?;
+        let close = tokens.next_if_punct().ok_or(PiResult::UnexpectedToken("']'"))?;
         if close.punct() != ']' {
-            return Err(PiError::UnexpectedToken("']'"));
+            return Err(PiResult::UnexpectedToken("']'"));
         }
         Ok(Self { open, lhs, eq: cond_op, rhs })
     }

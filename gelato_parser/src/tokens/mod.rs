@@ -179,6 +179,7 @@ impl Iterator for Tokens {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(next) = self.tokens.get(self.cursor) {
             self.cursor += 1;
+            println!("NEXT {}", next);
             Some(next.clone())
         } else {
             None

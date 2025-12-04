@@ -1,6 +1,6 @@
 use gelato_parser::tokens::{Ident, Tokens};
 
-use crate::app::error::{PiError, Result};
+use crate::app::error::{PiResult, Result};
 
 #[derive(Debug, Clone)]
 pub struct PiFreename {
@@ -15,7 +15,7 @@ impl PiFreename {
     pub fn parse_next(tokens: &mut Tokens) -> Result<Self> {
         let ident = tokens
             .next_if_ident()
-            .ok_or(PiError::UnexpectedToken("freename"))?;
+            .ok_or(PiResult::UnexpectedToken("freename"))?;
         Ok(Self { ident })
     }
 }

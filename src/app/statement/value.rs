@@ -1,6 +1,6 @@
 use gelato_parser::tokens::{Ident, Literal, Punct, Token, Tokens};
 
-use crate::app::{error::{FREENAME_ERROR, PiError, Result, STATEMENT_ERROR}, statement::{conditional::PiConditional, function::PiFunction, group::PiGroup, restriction::PiRestriction}};
+use crate::app::{error::{FREENAME_ERROR, PiResult, Result, STATEMENT_ERROR}, statement::{conditional::PiConditional, function::PiFunction, group::PiGroup, restriction::PiRestriction}};
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -21,7 +21,7 @@ pub enum Value {
 
 impl Value {
     pub fn parse_next(tokens: &mut Tokens) -> Result<Self> {
-        let next = tokens.next().ok_or(PiError::ExpectedStatement)?;
+        let next = tokens.next().ok_or(PiResult::ExpectedStatement)?;
         Self::parse_next_start(tokens, next)
     }
     pub fn parse_next_start(tokens: &mut Tokens, next: Token) -> Result<Self> {
@@ -50,7 +50,7 @@ impl Value {
     fn match_literal(tokens: &mut Tokens, ident: &Literal) -> Result<Self> {
         match ident.literal() {
             "0" => Ok(Self::Nil),
-            _ => Err(PiError::OnlyNil)
+            _ => Err(PiResult::OnlyNil)
         }
     }
     /// Could either be restriction, group or conditional.
@@ -63,7 +63,7 @@ impl Value {
                 Ok(Self::Conditional(PiConditional::parse_next(tokens, ident.clone())?))
             }
             _ => {
-                return Err(PiError::UnexpectedToken("'(' or '['"));
+                return Err(PiResult::UnexpectedToken("'(' or '['"));
             }
         }
     }
